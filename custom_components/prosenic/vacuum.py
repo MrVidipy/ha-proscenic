@@ -152,6 +152,9 @@ class FanSpeed(Enum):
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the Prosenic vacuum cleaner robot platform."""
+    _LOGGER.warn("Component is not maintained anymore and will be removed from HACS soon.")
+    _LOGGER.warn("The repository of this component will be archived soon.")
+
     if DATA_KEY not in hass.data:
         hass.data[DATA_KEY] = {}
 
