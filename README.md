@@ -1,4 +1,4 @@
-[![License][license-shield]](LICENSE.md)
+[![License](https://img.shields.io/github/license/edenhaus/ha-prosenic?style=for-the-badge)](LICENSE.md)
 
 # Proscenic Home Assistant component
 
