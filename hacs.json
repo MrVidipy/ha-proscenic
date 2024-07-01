@@ -1,10 +1,10 @@
 {
-  "name": "Prosenic vacuum cleaner",
+  "name": "Proscenic vacuum cleaner",
   "domains": [ "vacuum"],
   "country": ["IT", "AT"],
   "iot_class": "Local Polling",
   "zip_release": true,
-  "filename": "prosenic.zip",
+  "filename": "proscenic.zip",
   "hide_default_branch": true,
   "homeassistant": "0.109.0"
 }

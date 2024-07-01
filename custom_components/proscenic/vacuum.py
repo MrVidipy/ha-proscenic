@@ -1,4 +1,4 @@
-"""Support for the Prosenic vacuum cleaner robot."""
+"""Support for the Proscenic vacuum cleaner robot."""
 import asyncio
 import logging
 from enum import Enum, IntFlag
@@ -30,7 +30,7 @@ from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
     CONF_DEVICE_ID)
-from pytuya import Device
+from tinytuya import OutletDevice as Device
 
 from .const import (
     CONF_LOCAL_KEY,
@@ -51,14 +51,14 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_HOST): cv.string,
         vol.Required(CONF_DEVICE_ID): cv.string,
-        vol.Required(CONF_LOCAL_KEY): vol.All(str, vol.Length(min=15, max=16)),
+        vol.Required(CONF_LOCAL_KEY): cv.string,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Optional(CONF_REMEMBER_FAN_SPEED, default=False): cv.boolean
     },
     extra=vol.ALLOW_EXTRA,
 )
 
-SUPPORT_PROSENIC = (
+SUPPORT_PROSCENIC = (
         SUPPORT_STATE
         | SUPPORT_STOP
         | SUPPORT_RETURN_HOME
@@ -151,7 +151,7 @@ class FanSpeed(Enum):
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Set up the Prosenic vacuum cleaner robot platform."""
+    """Set up the Proscenic vacuum cleaner robot platform."""
     _LOGGER.warn("Component is not maintained anymore and will be removed from HACS soon.")
     _LOGGER.warn("The repository of this component will be archived soon.")
 
@@ -167,20 +167,20 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     # Create handler
     _LOGGER.info("Initializing with host %s", host)
 
-    device = Device(device_id, host, local_key, "device")
+    device = Device(device_id, host, local_key)
     device.version = 3.3
 
-    robot = ProsenicVacuum(name, device, remember_fan_speed)
+    robot = ProscenicVacuum(name, device, remember_fan_speed)
     hass.data[DATA_KEY][host] = robot
 
     async_add_entities([robot], update_before_add=True)
 
 
-class ProsenicVacuum(StateVacuumEntity):
-    """Representation of a Prosenic Vacuum cleaner robot."""
+class ProscenicVacuum(StateVacuumEntity):
+    """Representation of a Proscenic Vacuum cleaner robot."""
 
     def __init__(self, name: str, device: Device, remember_fan_speed: bool):
-        """Initialize the Prosenic vacuum cleaner robot."""
+        """Initialize the Proscenic vacuum cleaner robot."""
         self._name = name
         self._device = device
         self._remember_fan_speed = remember_fan_speed
@@ -243,7 +243,7 @@ class ProsenicVacuum(StateVacuumEntity):
     @property
     def supported_features(self):
         """Flag vacuum cleaner robot features that are supported."""
-        return SUPPORT_PROSENIC
+        return SUPPORT_PROSCENIC
 
     @property
     def direction_list(self):

@@ -1,0 +1,12 @@
+{
+  "domain": "proscenic",
+  "name": "Proscenic",
+  "documentation": "https://github.com/MrVidipy/ha-proscenic/blob/master/README.md",
+  "requirements": ["pycryptodome>=3.9.7", "tinytuya==1.14.0"],
+  "dependencies": [],
+  "version": "0.0.1",
+  "codeowners": [
+    "@edenhaus",
+    "@MrVidipy"
+  ]
+}
