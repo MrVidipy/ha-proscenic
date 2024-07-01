@@ -1,0 +1,11 @@
+set_water_speed:
+  name: Set water speed
+  description: Sets the water speed of the mop
+  target:
+  fields:
+    water_speed:
+      name: Water speed
+      description: "The amount of water released by the vacuum. Valid options: small, medium, Big"
+      required: true
+      example: medium
+      default: medium

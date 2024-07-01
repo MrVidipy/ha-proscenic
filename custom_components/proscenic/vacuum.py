@@ -5,7 +5,7 @@ from enum import Enum, IntFlag
 from functools import partial
 from typing import Optional, Union, Dict
 
-import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers import config_validation as cv, entity_platform
 import voluptuous as vol
 from homeassistant.components.vacuum import (
     PLATFORM_SCHEMA,
@@ -21,10 +21,12 @@ from homeassistant.components.vacuum import (
     SUPPORT_START,
     SUPPORT_STATE,
     SUPPORT_STOP,
+    SUPPORT_SEND_COMMAND,
     StateVacuumEntity,
     SUPPORT_PAUSE,
     STATE_RETURNING,
-    ATTR_CLEANED_AREA
+    ATTR_CLEANED_AREA,
+    DOMAIN
 )
 from homeassistant.const import (
     CONF_HOST,
@@ -36,13 +38,23 @@ from .const import (
     CONF_LOCAL_KEY,
     DEFAULT_NAME,
     CONF_REMEMBER_FAN_SPEED,
+    CONF_ENABLE_DEBUG,
     ATTR_ERROR,
     ATTR_CLEANING_TIME,
     ATTR_MOP_EQUIPPED,
+    ATTR_SENSOR_HEALTH,
+    ATTR_FILTER_HEALTH,
+    ATTR_SIDE_BRUSH_HEALTH,
+    ATTR_BRUSH_HEALTH,
+    ATTR_RESET_FILTER,
+    ATTR_DEVICE_MODEL,
+    ATTR_WATER_SPEED,
+    ATTR_WATER_SPEED_LIST,
     REMEMBER_FAN_SPEED_DELAY,
     DATA_KEY,
     STATE_MOPPING,
-    STATES
+    STATES,
+    SERVICE_SET_WATER_SPEED
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -51,9 +63,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_HOST): cv.string,
         vol.Required(CONF_DEVICE_ID): cv.string,
-        vol.Required(CONF_LOCAL_KEY): cv.string,
+        vol.Required(CONF_LOCAL_KEY): vol.All(str, vol.Length(min=15, max=16)),
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-        vol.Optional(CONF_REMEMBER_FAN_SPEED, default=False): cv.boolean
+        vol.Optional(CONF_REMEMBER_FAN_SPEED, default=False): cv.boolean,
+        vol.Optional(CONF_ENABLE_DEBUG, default=False): cv.boolean
     },
     extra=vol.ALLOW_EXTRA,
 )
@@ -123,7 +136,14 @@ class Fields(Enum):
     CLEAN_RECORD = 40  # ro
     CLEAN_AREA = 41  # ro
     CLEAN_TIME = 42  # ro
-    SWEEP_OR_MOP = 49  # ro
+    SENSOR_HEALTH = 44 #ro
+    FILTER_HEALTH = 45 #ro
+    SIDE_BRUSH_HEALTH = 47 #ro
+    BRUSH_HEALTH = 48 #ro
+    SWEEP_OR_MOP = 49 # ro
+    RESET_FILTER = 52 #ro
+    DEVICE_MODEL = 58 #ro
+    WATER_SPEED = 60 #rw
 
 
 class CleaningMode(Enum):
@@ -149,12 +169,14 @@ class FanSpeed(Enum):
     NORMAL = "normal"
     STRONG = "strong"
 
+class WaterSpeedMode(Enum):
+    LOW = "small"
+    MEDIUM = "medium"
+    HIGH = "Big"
+
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the Proscenic vacuum cleaner robot platform."""
-    _LOGGER.warn("Component is not maintained anymore and will be removed from HACS soon.")
-    _LOGGER.warn("The repository of this component will be archived soon.")
-
     if DATA_KEY not in hass.data:
         hass.data[DATA_KEY] = {}
 
@@ -163,6 +185,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     local_key = config[CONF_LOCAL_KEY]
     name = config[CONF_NAME]
     remember_fan_speed = config[CONF_REMEMBER_FAN_SPEED]
+    enable_debug = config[CONF_ENABLE_DEBUG]
 
     # Create handler
     _LOGGER.info("Initializing with host %s", host)
@@ -170,20 +193,32 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     device = Device(device_id, host, local_key)
     device.version = 3.3
 
-    robot = ProscenicVacuum(name, device, remember_fan_speed)
+    robot = ProscenicVacuum(name, device, remember_fan_speed, enable_debug)
     hass.data[DATA_KEY][host] = robot
 
     async_add_entities([robot], update_before_add=True)
+
+    platform = entity_platform.current_platform.get()
+
+    hass.data[DOMAIN].async_register_entity_service(
+        SERVICE_SET_WATER_SPEED,
+        {
+            vol.Required(ATTR_WATER_SPEED):
+                vol.All(vol.Coerce(str))
+        },
+        ProscenicVacuum.async_set_water_speed.__name__,
+    )
 
 
 class ProscenicVacuum(StateVacuumEntity):
     """Representation of a Proscenic Vacuum cleaner robot."""
 
-    def __init__(self, name: str, device: Device, remember_fan_speed: bool):
+    def __init__(self, name: str, device: Device, remember_fan_speed: bool, enable_debug: bool):
         """Initialize the Proscenic vacuum cleaner robot."""
         self._name = name
         self._device = device
         self._remember_fan_speed = remember_fan_speed
+        self._enable_debug = enable_debug
 
         self._available = False
         self._current_state: Optional[CurrentState] = None
@@ -191,6 +226,7 @@ class ProscenicVacuum(StateVacuumEntity):
         self._battery: Optional[int] = None
         self._fault: Fault = Fault.NO_ERROR
         self._fan_speed: FanSpeed = FanSpeed.NORMAL
+        self._water_speed: WaterSpeedMode = WaterSpeedMode.MEDIUM
         self._stored_fan_speed: FanSpeed = self._fan_speed
         self._additional_attr: Dict[str, Union[bool, str, int]] = dict()
 
@@ -227,11 +263,22 @@ class ProscenicVacuum(StateVacuumEntity):
         return [f.value for f in FanSpeed]
 
     @property
+    def water_speed(self):
+        """Return the water speed of the vacuum cleaner."""
+        return self._water_speed.value
+
+    @property
+    def water_speed_list(self):
+        """Get the list of available water speed steps of the vacuum cleaner."""
+        w: WaterSpeedMode
+        return [w.value for w in WaterSpeedMode]
+
+    @property
     def should_poll(self):
         return True
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return the specific state attributes of this vacuum cleaner."""
         return self._additional_attr
 
@@ -285,6 +332,18 @@ class ProscenicVacuum(StateVacuumEntity):
                 "Fan speed not recognized (%s). Valid speeds are: %s",
                 fan_speed,
                 self.fan_speed_list,
+            )
+            
+    async def async_set_water_speed(self, water_speed: str, **kwargs):
+        """Set mop water speed."""
+        try:
+            value = WaterSpeedMode(water_speed)
+            await self._execute_command(Fields.WATER_SPEED, value)
+        except Exception:
+            _LOGGER.error(
+                "Water speed not recognized (%s). Valid speeds are: %s",
+                water_speed,
+                self.water_speed_list,
             )
 
     def update(self):
@@ -370,12 +429,37 @@ class ProscenicVacuum(StateVacuumEntity):
                 elif field == Fields.SWEEP_OR_MOP:
                     self._additional_attr[ATTR_MOP_EQUIPPED] = False if v == "sweep" else True
 
+                elif field == Fields.SENSOR_HEALTH:
+                    self._additional_attr[ATTR_SENSOR_HEALTH] = int(v)
+
+                elif field == Fields.FILTER_HEALTH:
+                    self._additional_attr[ATTR_FILTER_HEALTH] = int(v)
+
+                elif field == Fields.SIDE_BRUSH_HEALTH:
+                    self._additional_attr[ATTR_SIDE_BRUSH_HEALTH] = int(v)
+
+                elif field == Fields.BRUSH_HEALTH:
+                    self._additional_attr[ATTR_BRUSH_HEALTH] = int(v)
+                
+                elif field == Fields.RESET_FILTER:
+                    self._additional_attr[ATTR_RESET_FILTER] = v
+                
+                elif field == Fields.DEVICE_MODEL:
+                    self._additional_attr[ATTR_DEVICE_MODEL] = v
+
+                elif field == Fields.WATER_SPEED:
+                    self._water_speed = WaterSpeedMode(v)
+                    self._additional_attr[ATTR_WATER_SPEED] = self._water_speed.value
+                    self._additional_attr[ATTR_WATER_SPEED_LIST] = self.water_speed_list
+
             except (KeyError, ValueError):
-                _LOGGER.warning(
-                    "An error occurred during the processing of the following item (%s:%s)",
-                    k,
-                    v
-                )
+                if self._enable_debug == True: 
+                    _LOGGER.warning(
+                        "An error occurred during the processing of the following item (%s:%s)",
+                        k,
+                        v
+                    )
+                
                 continue
 
     async def _wait_and_set_stored_fan_speed(self):

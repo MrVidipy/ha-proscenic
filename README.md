@@ -3,6 +3,7 @@
 # Proscenic Home Assistant component
 
 ## This is a fork based on [edenhaus work](https://github.com/edenhaus/ha-prosenic/tree/master)
+### I also used work from [FeikoJoosten fork](https://github.com/FeikoJoosten/ha-prosenic)
 
 A full featured Homeassistant component to control Proscenic vacuum cleaner locally without the cloud.
 This component is based on the underlying tinytuya library available [here](https://github.com/jasonacox/tinytuya).

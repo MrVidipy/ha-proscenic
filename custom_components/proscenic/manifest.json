@@ -2,11 +2,13 @@
   "domain": "proscenic",
   "name": "Proscenic",
   "documentation": "https://github.com/MrVidipy/ha-proscenic/blob/master/README.md",
+  "issue_tracker": "https://github.com/MrVidipy/ha-proscenic/issues",
   "requirements": ["pycryptodome>=3.9.7", "tinytuya==1.14.0"],
   "dependencies": [],
   "version": "0.0.1",
   "codeowners": [
     "@edenhaus",
+    "@FeikoJoosten",
     "@MrVidipy"
   ]
 }
