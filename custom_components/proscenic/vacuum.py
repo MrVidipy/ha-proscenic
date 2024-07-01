@@ -14,16 +14,8 @@ from homeassistant.components.vacuum import (
     STATE_ERROR,
     STATE_IDLE,
     STATE_PAUSED,
-    SUPPORT_BATTERY,
-    SUPPORT_CLEAN_SPOT,
-    SUPPORT_FAN_SPEED,
-    SUPPORT_RETURN_HOME,
-    SUPPORT_START,
-    SUPPORT_STATE,
-    SUPPORT_STOP,
-    SUPPORT_SEND_COMMAND,
+    VacuumEntityFeature,
     StateVacuumEntity,
-    SUPPORT_PAUSE,
     STATE_RETURNING,
     ATTR_CLEANED_AREA,
     DOMAIN
@@ -72,14 +64,14 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 SUPPORT_PROSCENIC = (
-        SUPPORT_STATE
-        | SUPPORT_STOP
-        | SUPPORT_RETURN_HOME
-        | SUPPORT_FAN_SPEED
-        | SUPPORT_BATTERY
-        | SUPPORT_CLEAN_SPOT
-        | SUPPORT_START
-        | SUPPORT_PAUSE
+        VacuumEntityFeature.STATE
+        | VacuumEntityFeature.STOP
+        | VacuumEntityFeature.RETURN_HOME
+        | VacuumEntityFeature.FAN_SPEED
+        | VacuumEntityFeature.BATTERY
+        | VacuumEntityFeature.CLEAN_SPOT
+        | VacuumEntityFeature.START
+        | VacuumEntityFeature.PAUSE
 )
 
 
