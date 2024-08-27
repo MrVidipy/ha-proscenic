@@ -166,6 +166,12 @@ class WaterSpeedMode(Enum):
     MEDIUM = "medium"
     HIGH = "Big"
 
+@dataclass
+class VacuumMap:
+    """Class for keeping track of an item in inventory."""
+    map_svg: str = None
+    last_clear_area: int = None
+    last_clear_duration: int = None
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the Proscenic vacuum cleaner robot platform."""
@@ -221,6 +227,10 @@ class ProscenicVacuum(StateVacuumEntity):
         self._water_speed: WaterSpeedMode = WaterSpeedMode.MEDIUM
         self._stored_fan_speed: FanSpeed = self._fan_speed
         self._additional_attr: Dict[str, Union[bool, str, int]] = dict()
+        self.map_svg = None
+        self.last_clear_area = None
+        self.last_clear_duration = None
+        self.map_generator_task = None
 
     @property
     def name(self) -> str:
